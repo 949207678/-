@@ -1,0 +1,7 @@
+{
+  "name": "Golden Christmas Dream",
+  "description": "A high-end, cinematic 3D interactive Christmas experience featuring a particle-based tree, gesture controls via MediaPipe, and user photo uploads.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
