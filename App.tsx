@@ -76,8 +76,8 @@ const App: React.FC = () => {
           />
           <pointLight position={[-10, -10, -10]} intensity={10} color="#ff0040" />
 
-          {/* Reflections: Using direct Polyhaven URL to avoid default preset fetch issues */}
-          <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr" />
+          {/* Reflections */}
+          <Environment preset="city" />
           
           {/* Background Stars */}
           <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />

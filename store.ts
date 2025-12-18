@@ -18,8 +18,13 @@ interface StoreState {
   photos: PhotoData[];
   addPhotos: (urls: string[]) => void;
   clearPhotos: () => void;
+  
   activePhotoId: string | null;
   setActivePhotoId: (id: string | null) => void;
+
+  // Random Photo Logic
+  viewedPhotoIds: string[]; // Track which photos have been randomly shown
+  activateRandomPhoto: () => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -40,6 +45,8 @@ export const useStore = create<StoreState>((set) => ({
   setTargetRotation: (x, y) => set({ targetRotation: { x, y } }),
 
   photos: [],
+  viewedPhotoIds: [],
+
   addPhotos: (urls) => set((state) => {
     // Generate positions for multiple photos at once
     const newPhotos: PhotoData[] = urls.map(url => {
@@ -70,11 +77,40 @@ export const useStore = create<StoreState>((set) => ({
       photos: [
         ...state.photos,
         ...newPhotos
-      ]
+      ],
+      // Reset viewed list when new photos are added (optional, but cleaner)
+      viewedPhotoIds: []
     };
   }),
-  clearPhotos: () => set({ photos: [] }),
+  
+  clearPhotos: () => set({ photos: [], viewedPhotoIds: [] }),
 
   activePhotoId: null,
   setActivePhotoId: (id) => set({ activePhotoId: id }),
+
+  activateRandomPhoto: () => set((state) => {
+    if (state.photos.length === 0) return state;
+
+    // Filter photos that haven't been viewed yet
+    let availablePhotos = state.photos.filter(p => !state.viewedPhotoIds.includes(p.id));
+
+    // If all photos have been viewed, reset the pool (allow re-viewing)
+    let nextViewedIds = [...state.viewedPhotoIds];
+    if (availablePhotos.length === 0) {
+      availablePhotos = [...state.photos];
+      nextViewedIds = []; 
+    }
+
+    // Pick a random one
+    const randomIndex = Math.floor(Math.random() * availablePhotos.length);
+    const selectedPhoto = availablePhotos[randomIndex];
+
+    // Add to viewed list
+    nextViewedIds.push(selectedPhoto.id);
+
+    return {
+      activePhotoId: selectedPhoto.id,
+      viewedPhotoIds: nextViewedIds
+    };
+  }),
 }));

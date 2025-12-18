@@ -6,17 +6,24 @@ import { useStore } from '../store';
 import { AppState, PhotoData } from '../types';
 
 export const PhotoCloud: React.FC = () => {
-  const { photos, appState, handData, activePhotoId, setActivePhotoId } = useStore();
+  const { photos, appState, handData, activePhotoId, setActivePhotoId, activateRandomPhoto } = useStore();
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
+  
+  // Track previous pinch state to detect the "moment" pinch starts (Rising Edge)
+  const wasPinching = useRef(false);
 
   // Reusable vector to prevent garbage collection every frame
   const tempVec = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    // --- PINCH / GRAB LOGIC ---
-    // If pinching and no active photo, find the nearest one to the cursor
-    if (handData.detected && handData.isPinching && !activePhotoId) {
+    const isPinching = handData.detected && handData.isPinching;
+
+    // --- PINCH START LOGIC (Rising Edge) ---
+    // We only trigger selection logic exactly when the user *starts* pinching.
+    // This allows "pinch in empty space -> get random photo".
+    if (isPinching && !wasPinching.current && !activePhotoId) {
+      
       // Hand Coordinates: 0-1 (Top-Left origin logic in CSS, but Hand Data is passed as Normalized)
       // Convert to NDC: range [-1, 1], Y up.
       const ndcX = (handData.x * 2) - 1;
@@ -52,13 +59,22 @@ export const PhotoCloud: React.FC = () => {
       }
 
       if (nearestId) {
+        // Found a specific photo nearby
         setActivePhotoId(nearestId);
+      } else {
+        // Pinched in empty space -> Summon random photo from library
+        activateRandomPhoto();
       }
-
-    } else if ((!handData.isPinching || !handData.detected) && activePhotoId) {
-      // Release if stop pinching or hand lost
+    } 
+    
+    // --- PINCH RELEASE LOGIC ---
+    // If we stop pinching, release the active photo
+    if (!isPinching && activePhotoId) {
       setActivePhotoId(null);
     }
+
+    // Update history for next frame
+    wasPinching.current = isPinching;
   });
 
   return (
@@ -84,9 +100,13 @@ interface PhotoItemProps {
 const PhotoItem: React.FC<PhotoItemProps> = ({ photo, active, exploded }) => {
   // Use a Group as the main animated object
   const groupRef = useRef<THREE.Group>(null);
+  const frameMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
   const targetPos = new THREE.Vector3();
   const targetScale = new THREE.Vector3();
   
+  // Get screen aspect ratio to adjust zoom size
+  const { size, camera } = useThree();
+
   // Calculate a unique explode position for this photo that covers the whole sphere
   // independent of its tree position
   const explodePos = useMemo(() => {
@@ -122,23 +142,48 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, active, exploded }) => {
     const lerpSpeed = active ? 6 : 3;
 
     if (active) {
-      // Active State: Move to front of camera
+      // --- ACTIVE ANIMATION ---
       const camDir = new THREE.Vector3();
       state.camera.getWorldDirection(camDir);
-      targetPos.copy(state.camera.position).add(camDir.multiplyScalar(8));
-      targetScale.set(4, 4, 4);
+      
+      const distance = 8;
+      const fovRad = (state.camera as THREE.PerspectiveCamera).fov * (Math.PI / 180);
+      const visibleHeight = 2 * distance * Math.tan(fovRad / 2);
+      const visibleWidth = visibleHeight * (size.width / size.height);
+      
+      const minDimension = Math.min(visibleHeight, visibleWidth);
+      const responsiveScale = minDimension * 0.75; 
+
+      targetPos.copy(state.camera.position).add(camDir.multiplyScalar(distance));
+      targetScale.set(responsiveScale, responsiveScale, responsiveScale);
+      
       groupRef.current.lookAt(state.camera.position);
+
+      // --- FRAME GLOW PULSE ---
+      if (frameMaterialRef.current) {
+        // Oscillate emissive intensity between 0.3 and 1.2
+        const pulse = 0.75 + Math.sin(state.clock.elapsedTime * 4.5) * 0.45;
+        frameMaterialRef.current.emissiveIntensity = pulse;
+        
+        // Subtle color shift for extra magic
+        const hueShift = Math.sin(state.clock.elapsedTime * 2) * 0.05;
+        frameMaterialRef.current.emissive.setHSL(0.12 + hueShift, 0.9, 0.5);
+      }
     } else {
+      // --- INACTIVE ANIMATION ---
       const [px, py, pz] = photo.position;
       
       if (exploded) {
-         // Explode State: Use the full-sphere random position
          targetPos.copy(explodePos);
          targetScale.set(1.5, 1.5, 1.5);
       } else {
-         // Tree State: Use original restricted position
          targetPos.set(px, py, pz);
          targetScale.set(1.2, 1.2, 1.2);
+      }
+
+      // Reset material when not active
+      if (frameMaterialRef.current) {
+        frameMaterialRef.current.emissiveIntensity = 0.2;
       }
     }
     
@@ -166,9 +211,10 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, active, exploded }) => {
         <mesh position={[0, 0, -0.05]} visible={active}>
           <boxGeometry args={[1.1, 1.1, 0.05]} />
           <meshStandardMaterial 
+            ref={frameMaterialRef}
             color="#FFD700" 
             metalness={1.0} 
-            roughness={0.3} 
+            roughness={0.15} 
             emissive="#B8860B"
             emissiveIntensity={0.2}
           />

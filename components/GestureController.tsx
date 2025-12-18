@@ -155,12 +155,11 @@ export const GestureController: React.FC = () => {
   }, [setHandData, setAppState, setTargetRotation]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 opacity-80 pointer-events-none">
-       {/* Tiny preview to know it's working */}
-       <div className="relative w-32 h-24 bg-black/50 border border-gold-500/30 rounded overflow-hidden">
+    // Hidden container to keep video stream active for AI processing but invisible to user
+    <div className="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none -z-50 overflow-hidden">
+       <div className="relative w-32 h-24">
           <video ref={videoRef} className="absolute w-full h-full object-cover transform -scale-x-100" autoPlay playsInline muted />
           <canvas ref={canvasRef} className="absolute w-full h-full object-cover" />
-          {!loaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-white">Loading AI...</div>}
        </div>
     </div>
   );

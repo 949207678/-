@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Helper to generate positions for the tree (Cone shape) vs Exploded (Sphere cloud)
-export const generateParticles = (count: number, type: 'leaf' | 'ribbon' | 'gold') => {
+export const generateParticles = (count: number, type: 'leaf' | 'ribbon' | 'gold' | 'box') => {
   const data = new Float32Array(count * 6); // x,y,z (tree), x,y,z (explode)
   
   const treeHeight = 16;
@@ -13,16 +13,19 @@ export const generateParticles = (count: number, type: 'leaf' | 'ribbon' | 'gold
     // --- TREE FORMATION ---
     let tx, ty, tz;
     
-    if (type === 'leaf' || type === 'gold') {
+    if (type === 'leaf' || type === 'gold' || type === 'box') {
       // Random volume inside cone
       const h = Math.random(); // 0 to 1 height factor
-      // For gold ornaments, push them slightly more towards the surface but still mixed in
-      const rScale = type === 'gold' ? 0.9 : 1.0; 
+      
+      let rScale = 1.0;
+      if (type === 'gold') rScale = 0.9;
+      if (type === 'box') rScale = 0.95; // Boxes sit slightly further out/surface
+
       const rMax = (1 - h) * treeRadius * rScale;
       
-      // Bias gold distribution slightly outward
+      // Bias gold/box distribution slightly outward to be visible
       const rRand = Math.random();
-      const r = (type === 'gold' ? Math.sqrt(rRand) : rRand) * rMax; 
+      const r = ((type === 'gold' || type === 'box') ? Math.sqrt(rRand) : rRand) * rMax; 
       
       const theta = Math.random() * Math.PI * 2;
       

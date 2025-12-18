@@ -10,30 +10,41 @@ const tempObject = new THREE.Object3D();
 
 const LEAF_COUNT = 1500;
 const GOLD_COUNT = 600;
-const RIBBON_COUNT = 600; // Increased count for smoother line
+const RIBBON_COUNT = 600; 
+const BOX_COUNT = 150;
 
 export const TreeParticles: React.FC = () => {
   const leavesRef = useRef<THREE.InstancedMesh>(null);
   const goldRef = useRef<THREE.InstancedMesh>(null);
   const ribbonRef = useRef<THREE.InstancedMesh>(null);
+  
+  // Box and its decorations
+  const boxRef = useRef<THREE.InstancedMesh>(null);
+  const boxRibbon1Ref = useRef<THREE.InstancedMesh>(null);
+  const boxRibbon2Ref = useRef<THREE.InstancedMesh>(null);
+  const boxBowRef = useRef<THREE.InstancedMesh>(null);
+
   const { appState } = useStore();
 
   // Generate static positions
   const leafData = useMemo(() => generateParticles(LEAF_COUNT, 'leaf'), []);
   const goldData = useMemo(() => generateParticles(GOLD_COUNT, 'gold'), []);
   const ribbonData = useMemo(() => generateParticles(RIBBON_COUNT, 'ribbon'), []);
+  const boxData = useMemo(() => generateParticles(BOX_COUNT, 'box'), []);
 
   // Animation Refs (Current Positions)
   const currentLeafPos = useRef(new Float32Array(LEAF_COUNT * 3));
   const currentGoldPos = useRef(new Float32Array(GOLD_COUNT * 3));
   const currentRibbonPos = useRef(new Float32Array(RIBBON_COUNT * 3));
+  const currentBoxPos = useRef(new Float32Array(BOX_COUNT * 3));
 
   // Initialize current positions
   useMemo(() => {
     for (let i = 0; i < LEAF_COUNT * 3; i++) currentLeafPos.current[i] = leafData[i];
     for (let i = 0; i < GOLD_COUNT * 3; i++) currentGoldPos.current[i] = goldData[i];
     for (let i = 0; i < RIBBON_COUNT * 3; i++) currentRibbonPos.current[i] = ribbonData[i];
-  }, [leafData, goldData, ribbonData]);
+    for (let i = 0; i < BOX_COUNT * 3; i++) currentBoxPos.current[i] = boxData[i];
+  }, [leafData, goldData, ribbonData, boxData]);
 
   useFrame((state, delta) => {
     const isExploded = appState === AppState.EXPLODE;
@@ -105,8 +116,50 @@ export const TreeParticles: React.FC = () => {
       }
       goldRef.current.instanceMatrix.needsUpdate = true;
     }
+    
+    // --- ANIMATE BOXES (and Decorations) ---
+    if (boxRef.current && boxRibbon1Ref.current && boxRibbon2Ref.current && boxBowRef.current) {
+      for (let i = 0; i < BOX_COUNT; i++) {
+        const i3 = i * 6;
+        const ci3 = i * 3;
 
-    // --- ANIMATE RIBBON ---
+        const targetX = isExploded ? boxData[i3 + 3] : boxData[i3];
+        const targetY = isExploded ? boxData[i3 + 4] : boxData[i3 + 1];
+        const targetZ = isExploded ? boxData[i3 + 5] : boxData[i3 + 2];
+
+        currentBoxPos.current[ci3] += (targetX - currentBoxPos.current[ci3]) * lerpFactor;
+        currentBoxPos.current[ci3 + 1] += (targetY - currentBoxPos.current[ci3 + 1]) * lerpFactor;
+        currentBoxPos.current[ci3 + 2] += (targetZ - currentBoxPos.current[ci3 + 2]) * lerpFactor;
+
+        tempObject.position.set(
+          currentBoxPos.current[ci3],
+          currentBoxPos.current[ci3 + 1],
+          currentBoxPos.current[ci3 + 2]
+        );
+        
+        // Box rotation
+        tempObject.rotation.set(time * 0.3 + i, time * 0.3 + i, 0);
+        
+        // Scale
+        const scale = (isExploded ? 0.8 : 1.2) + Math.sin(time * 1.5 + i) * 0.1;
+        tempObject.scale.setScalar(scale);
+
+        tempObject.updateMatrix();
+        
+        // Apply same matrix to Box, Ribbons, and Bow so they move together
+        boxRef.current.setMatrixAt(i, tempObject.matrix);
+        boxRibbon1Ref.current.setMatrixAt(i, tempObject.matrix);
+        boxRibbon2Ref.current.setMatrixAt(i, tempObject.matrix);
+        boxBowRef.current.setMatrixAt(i, tempObject.matrix);
+      }
+      
+      boxRef.current.instanceMatrix.needsUpdate = true;
+      boxRibbon1Ref.current.instanceMatrix.needsUpdate = true;
+      boxRibbon2Ref.current.instanceMatrix.needsUpdate = true;
+      boxBowRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    // --- ANIMATE RIBBON PARTICLES ---
     if (ribbonRef.current) {
       for (let i = 0; i < RIBBON_COUNT; i++) {
         const i3 = i * 6;
@@ -142,12 +195,12 @@ export const TreeParticles: React.FC = () => {
 
   return (
     <group>
-      {/* Leaves: Pink Octahedrons */}
+      {/* Leaves: Christmas Green Octahedrons */}
       <instancedMesh ref={leavesRef} args={[undefined, undefined, LEAF_COUNT]} castShadow receiveShadow>
         <octahedronGeometry args={[0.3, 0]} />
         <meshStandardMaterial 
-          color="#FFB7C5" 
-          emissive="#FF69B4"
+          color="#14452F" 
+          emissive="#1F6E45"
           emissiveIntensity={0.2}
           roughness={0.2}
           metalness={0.6}
@@ -167,7 +220,56 @@ export const TreeParticles: React.FC = () => {
         />
       </instancedMesh>
 
-      {/* Ribbon: White Tiny Tetrahedrons (Diamond Dust) */}
+      {/* GIFT BOXES GROUP */}
+      {/* 1. Main Box Body (Champagne/Cream Paper) */}
+      <instancedMesh ref={boxRef} args={[undefined, undefined, BOX_COUNT]} castShadow receiveShadow>
+        <boxGeometry args={[0.35, 0.35, 0.35]} />
+        <meshStandardMaterial 
+          color="#F8E5B6" 
+          emissive="#333333"
+          emissiveIntensity={0.1}
+          roughness={0.4}
+          metalness={0.1}
+        />
+      </instancedMesh>
+
+      {/* 2. Ribbon Vertical (Red Metallic) - slightly larger than box in Y/Z, thin in X */}
+      <instancedMesh ref={boxRibbon1Ref} args={[undefined, undefined, BOX_COUNT]}>
+        <boxGeometry args={[0.355, 0.355, 0.1]} />
+        <meshStandardMaterial 
+          color="#D42426" 
+          emissive="#500000"
+          emissiveIntensity={0.3}
+          roughness={0.2}
+          metalness={0.8}
+        />
+      </instancedMesh>
+
+      {/* 3. Ribbon Horizontal (Red Metallic) - slightly larger than box in X/Z, thin in Y */}
+      <instancedMesh ref={boxRibbon2Ref} args={[undefined, undefined, BOX_COUNT]}>
+        <boxGeometry args={[0.1, 0.355, 0.355]} />
+        <meshStandardMaterial 
+          color="#D42426" 
+          emissive="#500000"
+          emissiveIntensity={0.3}
+          roughness={0.2}
+          metalness={0.8}
+        />
+      </instancedMesh>
+
+      {/* 4. Center Bow/Knot (Red Metallic) */}
+      <instancedMesh ref={boxBowRef} args={[undefined, undefined, BOX_COUNT]}>
+        <boxGeometry args={[0.12, 0.12, 0.4]} />
+        <meshStandardMaterial 
+          color="#D42426" 
+          emissive="#500000"
+          emissiveIntensity={0.4}
+          roughness={0.2}
+          metalness={0.8}
+        />
+      </instancedMesh>
+
+      {/* Ribbon Particles (White Dust) */}
       <instancedMesh ref={ribbonRef} args={[undefined, undefined, RIBBON_COUNT]}>
         <tetrahedronGeometry args={[0.15, 0]} />
         <meshStandardMaterial 

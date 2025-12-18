@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -31,6 +32,18 @@
         transform: translate(-50%, -50%);
         transition: width 0.2s, height 0.2s, background-color 0.2s;
       }
+
+      @keyframes jingle {
+        0% { transform: rotate(0deg); }
+        25% { transform: rotate(15deg); }
+        50% { transform: rotate(0deg); }
+        75% { transform: rotate(-15deg); }
+        100% { transform: rotate(0deg); }
+      }
+      .animate-jingle {
+        animation: jingle 0.8s ease-in-out infinite;
+        transform-origin: center top;
+      }
     </style>
   <script type="importmap">
 {
@@ -50,6 +63,5 @@
 </head>
   <body>
     <div id="root"></div>
-      <script type="module" src="/index.tsx"></script>
   </body>
 </html>
