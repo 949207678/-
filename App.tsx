@@ -1,6 +1,7 @@
-import React, { Suspense, useRef } from 'react';
+
+import React, { Suspense, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Stars, Float, ContactShadows } from '@react-three/drei';
+import { Stars, Float, ContactShadows } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
@@ -11,17 +12,30 @@ import { PhotoCloud } from './components/PhotoCloud';
 import { UIOverlay } from './components/UIOverlay';
 import { TreeStar } from './components/TreeStar';
 import { SnowParticles } from './components/SnowParticles';
+import { AppState } from './types';
 
 const SceneContent: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
-  const { targetRotation } = useStore();
+  const autoRotateRef = useRef(0);
+  const { targetRotation, appState } = useStore();
 
   useFrame((state, delta) => {
     if (groupRef.current) {
+      // Slow auto-rotation only when in TREE state
+      if (appState === AppState.TREE) {
+        autoRotateRef.current += delta * 0.2; // Slow rotation speed
+      } else {
+        // Optional: Slowly decay auto-rotation if you want it to stop exactly where it is when exploding
+        // Or keep it for continuity. Here we'll keep it as a base offset.
+      }
+
       // Smoothly rotate the entire tree group based on hand movement
-      // Damping the rotation for a cinematic feel
+      // targetRotation.y maps to X rotation, targetRotation.x maps to Y rotation
       const dampX = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetRotation.y * 0.5, delta * 2);
-      const dampY = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.x * 0.5, delta * 2);
+      
+      // Combine auto-rotation with user gesture rotation
+      const targetY = (appState === AppState.TREE ? autoRotateRef.current : 0) + (targetRotation.x * 0.5);
+      const dampY = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetY, delta * 2);
       
       groupRef.current.rotation.x = dampX;
       groupRef.current.rotation.y = dampY;
@@ -30,7 +44,6 @@ const SceneContent: React.FC = () => {
 
   return (
     <>
-      {/* Rotatable Tree Group */}
       <group ref={groupRef}>
         <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
           <TreeParticles />
@@ -38,11 +51,11 @@ const SceneContent: React.FC = () => {
           <TreeStar />
         </Float>
         
-        {/* Central glow light */}
-        <pointLight position={[0, 0, 0]} intensity={2} color="#ffaa00" distance={10} decay={2} />
+        {/* Central warm glow light */}
+        <pointLight position={[0, 0, 0]} intensity={3} color="#ffaa00" distance={15} decay={2} />
       </group>
 
-      {/* Global Snow (Unaffected by tree rotation) */}
+      {/* Global Snow */}
       <SnowParticles />
     </>
   );
@@ -64,21 +77,26 @@ const App: React.FC = () => {
           <color attach="background" args={['#050202']} />
           <fog attach="fog" args={['#050202', 20, 90]} />
 
-          {/* Environment & Lighting */}
-          <ambientLight intensity={0.2} color="#ffffff" />
+          {/* Optimized Lighting Setup - Replaces HDR Environment */}
+          <ambientLight intensity={0.5} color="#ffffff" />
+          
+          {/* Key warm light */}
           <spotLight 
-            position={[20, 20, 20]} 
-            angle={0.25} 
+            position={[25, 25, 25]} 
+            angle={0.2} 
             penumbra={1} 
-            intensity={500} 
-            color="#ffddaa" 
+            intensity={1200} 
+            color="#fff2cc" 
             castShadow 
           />
-          <pointLight position={[-10, -10, -10]} intensity={10} color="#ff0040" />
-
-          {/* Reflections */}
-          <Environment preset="city" />
           
+          {/* Rim light for gold definition */}
+          <directionalLight position={[-15, 10, 10]} intensity={2.5} color="#ffffff" />
+          
+          {/* Accent colored lights */}
+          <pointLight position={[-15, -10, -5]} intensity={40} color="#ff0040" />
+          <pointLight position={[15, 0, -10]} intensity={30} color="#0088ff" />
+
           {/* Background Stars */}
           <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
@@ -87,13 +105,13 @@ const App: React.FC = () => {
           
           <ContactShadows opacity={0.5} scale={50} blur={2} far={10} resolution={256} color="#000000" />
 
-          {/* Post Processing for "Cinematic Glow" */}
+          {/* Post Processing */}
           <EffectComposer disableNormalPass>
             <Bloom 
               luminanceThreshold={0.8} 
               mipmapBlur 
-              intensity={1.5} 
-              radius={0.4}
+              intensity={1.8} 
+              radius={0.5}
             />
             <Noise opacity={0.02} />
             <Vignette eskil={false} offset={0.1} darkness={1.1} />

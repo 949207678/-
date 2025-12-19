@@ -1,3 +1,4 @@
+
 import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -213,15 +214,13 @@ export const TreeParticles: React.FC = () => {
         <meshStandardMaterial 
           color="#FFD700" 
           emissive="#FFA500"
-          emissiveIntensity={0.4}
+          emissiveIntensity={0.5}
           roughness={0.1}
           metalness={1.0}
-          envMapIntensity={1.5}
         />
       </instancedMesh>
 
       {/* GIFT BOXES GROUP */}
-      {/* 1. Main Box Body (Champagne/Cream Paper) */}
       <instancedMesh ref={boxRef} args={[undefined, undefined, BOX_COUNT]} castShadow receiveShadow>
         <boxGeometry args={[0.35, 0.35, 0.35]} />
         <meshStandardMaterial 
@@ -233,7 +232,6 @@ export const TreeParticles: React.FC = () => {
         />
       </instancedMesh>
 
-      {/* 2. Ribbon Vertical (Red Metallic) - slightly larger than box in Y/Z, thin in X */}
       <instancedMesh ref={boxRibbon1Ref} args={[undefined, undefined, BOX_COUNT]}>
         <boxGeometry args={[0.355, 0.355, 0.1]} />
         <meshStandardMaterial 
@@ -245,7 +243,6 @@ export const TreeParticles: React.FC = () => {
         />
       </instancedMesh>
 
-      {/* 3. Ribbon Horizontal (Red Metallic) - slightly larger than box in X/Z, thin in Y */}
       <instancedMesh ref={boxRibbon2Ref} args={[undefined, undefined, BOX_COUNT]}>
         <boxGeometry args={[0.1, 0.355, 0.355]} />
         <meshStandardMaterial 
@@ -257,7 +254,6 @@ export const TreeParticles: React.FC = () => {
         />
       </instancedMesh>
 
-      {/* 4. Center Bow/Knot (Red Metallic) */}
       <instancedMesh ref={boxBowRef} args={[undefined, undefined, BOX_COUNT]}>
         <boxGeometry args={[0.12, 0.12, 0.4]} />
         <meshStandardMaterial 
